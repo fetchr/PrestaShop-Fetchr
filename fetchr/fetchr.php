@@ -146,7 +146,7 @@ class Fetchr extends Module
                         'name' => 'test',
                         'address' => 'Dubai'
                     ),
-                    'COD' => '25',
+                    'COD' => $order['total_shipping'],
                     'price' => $item['product_price'],
                     'is_voucher' => 'No'
                 );
@@ -182,8 +182,8 @@ class Fetchr extends Module
                                 "order_id" => $order['id_order'],
                                 "customer_firstname" => $order['firstname'],
                                 "payment_method" => $paymentType,
-                                "customer_mobile" => $address['telephone'],
-                                "customer_lastname" => $order['firstname'],
+                                "customer_mobile" => $order['phone'],
+                                "customer_lastname" => $order['lastname'],
                                 "order_country" => $address['country'],
                                 "order_address" => $order['address1'] . ', ' . $order['city'] . ', ' . $order['country']
                             )
@@ -222,7 +222,7 @@ class Fetchr extends Module
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                     $response = curl_exec($ch);
                     curl_close($ch);
-                    print_r($response);
+//                    print_r($response);
                     if ($response['response']['tracking_no'] != '0') {
 
                         $get_order_state = Db::getInstance()->executeS('SELECT id_order_state FROM ' . _DB_PREFIX_ . 'order_state_lang osl WHERE osl.name = "Fetchr Shipping"');
@@ -246,7 +246,7 @@ class Fetchr extends Module
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
                     $response = curl_exec($ch);
-                    print_r($response);
+//                    print_r($response);
                     $varshipID     = $response;
                     $shipidexpStr  = explode("status", $varshipID);
                     $ResValShip    = $shipidexpStr[0];
