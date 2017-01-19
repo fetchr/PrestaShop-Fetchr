@@ -31,6 +31,13 @@ class Fetchr extends Module
     private $html = '';
     private $option = '';
 
+    protected static $class_aliases = array(
+      'Collection' => 'PrestaShopCollection',
+      'Autoload' => 'PrestaShopAutoload',
+      'Backup' => 'PrestaShopBackup',
+      'Logger' => 'PrestaShopLogger'
+   );
+    
     public function __construct()
     {
         $this->name          = 'fetchr';
@@ -132,7 +139,6 @@ class Fetchr extends Module
     {
         $get_order_details = Db::getInstance()->executeS('SELECT * FROM ' . _DB_PREFIX_ . 'orders o LEFT JOIN ' . _DB_PREFIX_ . 'customer c ON (c.id_customer = o.id_customer) LEFT JOIN ' . _DB_PREFIX_ . 'address a ON (a.id_address = o.id_address_delivery) WHERE o.current_state = ' . (int) Configuration::get('PS_OS_PREPARATION'));
         foreach ($get_order_details as $order) {
-
             $get_product_details = Db::getInstance()->executeS('SELECT * FROM ' . _DB_PREFIX_ . 'order_detail od WHERE od.id_order = ' . (int) ($order['id_order']));
             foreach ($get_product_details as $item) {
                 $itemArray[] = array(
@@ -169,6 +175,9 @@ class Fetchr extends Module
                     $grandtotal  = 0;
             }
             $ServiceType = Configuration::get('fetchr_servcie_type');
+            $order['phone'] = trim($order['phone']);
+            $order['phone_mobile'] = trim($order['phone_mobile']);
+            
             switch ($ServiceType) {
                 case 'fulfilment':
                     $dataErp[] = array(
@@ -182,7 +191,7 @@ class Fetchr extends Module
                                 "order_id" => $order['id_order'],
                                 "customer_firstname" => $order['firstname'],
                                 "payment_method" => $paymentType,
-                                "customer_mobile" => $order['phone'],
+                                "customer_mobile" => !empty($order['phone']) ? $order['phone'] : $order['phone_mobile'],
                                 "customer_lastname" => $order['lastname'],
                                 "order_country" => $address['country'],
                                 "order_address" => $order['address1'] . ', ' . $order['city'] . ', ' . $order['country']
