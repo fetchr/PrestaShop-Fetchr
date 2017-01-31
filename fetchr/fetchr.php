@@ -17,7 +17,7 @@
 * versions in the future. If you wish to customize Fetchr PrestaShop Module (Fetchr Shiphappy) for your
 * needs please refer to http://www.fetchr.us for more information.
 *
-* @author     Danish Kamal
+* @author     Fetchr.us
 * @package    Fetchr Shiphappy
 * Used in pusing order from PrestaShop Store to Fetchr
 * @copyright  Copyright (c) 2015 Fetchr (http://www.fetchr.us)
@@ -43,7 +43,7 @@ class Fetchr extends Module
         $this->name          = 'fetchr';
         $this->tab           = 'shipping_logistics';
         $this->version       = 1.0;
-        $this->author        = 'Danish Kamal';
+        $this->author        = 'Fetchr';
         $this->need_instance = 0;
         parent::__construct();
         $this->displayName = $this->l('Fetchr - Ship Happy');
@@ -178,62 +178,98 @@ class Fetchr extends Module
             $order['phone'] = trim($order['phone']);
             $order['phone_mobile'] = trim($order['phone_mobile']);
             
-            switch ($ServiceType) {
-                case 'fulfilment':
-                    $dataErp[] = array(
-                        "order" => array(
-                            "items" => $itemArray,
-                            "details" => array(
-                                "status" => "",
-                                "discount" => 0,
-                                "grand_total" => $grandtotal,
-                                "customer_email" => $order['email'],
-                                "order_id" => $order['id_order'],
-                                "customer_firstname" => $order['firstname'],
-                                "payment_method" => $paymentType,
-                                "customer_mobile" => !empty($order['phone']) ? $order['phone'] : $order['phone_mobile'],
-                                "customer_lastname" => $order['lastname'],
-                                "order_country" => $address['country'],
-                                "order_address" => $order['address1'] . ', ' . $order['city'] . ', ' . $order['country']
+            /* By Islam Khalil
+            ** Starts Check If Order is already Pushed
+            */
+            $data   =   array(  'username' => Configuration::get('fetchr_username'),
+                                'password' => Configuration::get('fetchr_password'),
+                                'method' => 'getOrderReport',
+                                'order_id' =>  Configuration::get('fetchr_username').'_'.$order['id_order']
+                            );
+            
+            $data_string  = json_encode($data) ;
+            $ch           = curl_init();
+            $url          = $baseurl.'/api/getreport/';
+            
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
+            
+            $order_erp_status = curl_exec($ch);
+//            PrestaShopLogger::addLog($order_erp_status);
+            $order_erp_status = json_decode($order_erp_status, true);
+            /*
+            ** Ends Check If Order is already Pushed
+            */
+            
+            $erp_order_id = Configuration::get('fetchr_username').'_'.$order['id_order'];
+            
+            if($order_erp_status['order_status'] == 'Order Not Found'){
+                switch ($ServiceType) {
+                    case 'fulfilment':
+                        $dataErp[] = array(
+                            "order" => array(
+                                "items" => $itemArray,
+                                "details" => array(
+                                    "status" => "",
+                                    "discount" => 0,
+                                    "grand_total" => $grandtotal,
+                                    "customer_email" => $order['email'],
+                                    "order_id" => $erp_order_id,
+                                    "customer_firstname" => $order['firstname'],
+                                    "payment_method" => $paymentType,
+                                    "customer_mobile" => !empty($order['phone']) ? $order['phone'] : $order['phone_mobile'],
+                                    "customer_lastname" => $order['lastname'],
+                                    "order_country" => $address['country'],
+                                    "order_address" => $order['address1'] . ', ' . $order['city'] . ', ' . $order['country']
+                                )
                             )
-                        )
-                    );
-                    break;
-                case 'delivery':
-                    $dataErp = array(
-                        "username" => Configuration::get('fetchr_username'),
-                        "password" => Configuration::get('fetchr_password'),
-                        "method" => 'create_orders',
-                        "data" => array(
-                            array(
-                                "order_reference" => $order['id_order'],
-                                "name" => $order['firstname'] . ' ' . $order['firstname'],
-                                "email" => $order['email'],
-                                "phone_number" => $order['phone_mobile'],
-                                "address" => $order['address1'],
-                                "city" => $order['city'],
-                                "payment_type" => $paymentType,
-                                "amount" => $grandtotal,
-                                "description" => 'No',
-                                "comments" => 'No'
+                        );
+                        break;
+                    case 'delivery':
+                        $dataErp = array(
+                            "username" => Configuration::get('fetchr_username'),
+                            "password" => Configuration::get('fetchr_password'),
+                            "method" => 'create_orders',
+                            "data" => array(
+                                array(
+                                    "order_reference" =>$erp_order_id,
+                                    "name" => $order['firstname'] . ' ' . $order['firstname'],
+                                    "email" => $order['email'],
+                                    "phone_number" => $order['phone_mobile'],
+                                    "address" => $order['address1'],
+                                    "city" => $order['city'],
+                                    "payment_type" => $paymentType,
+                                    "amount" => $grandtotal,
+                                    "description" => 'No',
+                                    "comments" => 'No'
+                                )
                             )
-                        )
-                    );
-            }
-            switch ($ServiceType) {
-                case 'fulfilment':
+                        );
+                }
+                switch ($ServiceType) {
+                    case 'fulfilment':
                     $ERPdata = "ERPdata=" . json_encode($dataErp);
+                    $merchant_name  = "MENA360 API";
                     $ch      = curl_init();
-                    $url     = $baseurl . "/client/gapicurl/";
+                    $url     = $baseurl . "/client/apifulfilment/";
                     curl_setopt($ch, CURLOPT_URL, $url);
                     curl_setopt($ch, CURLOPT_POST, true);
-                    curl_setopt($ch, CURLOPT_POSTFIELDS, $ERPdata . "&erpuser=" . Configuration::get('fetchr_username') . "&erppassword=" . Configuration::get('fetchr_password') . "&merchant_name=" . Configuration::get('fetchr_username'));
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, $ERPdata . "&erpuser=" . Configuration::get('fetchr_username') . "&erppassword=" . Configuration::get('fetchr_password') . "&merchant_name=" . $merchant_name);
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                     $response = curl_exec($ch);
                     curl_close($ch);
-//                    print_r($response);
-                    if ($response['response']['tracking_no'] != '0') {
-
+                    
+                    $decoded_response = json_decode($response, true);
+//                    PrestaShopLogger::addLog($response);
+                      
+                    if ($decoded_response['tracking_no'] != '0' && $decoded_response['success'] == true) {
+                    
+                        $order_carrier = new OrderCarrier($order['id_order']);
+                        $order_carrier->tracking_number = $decoded_response['tracking_no'];
+                        $order_carrier->update();
+                        
                         $get_order_state = Db::getInstance()->executeS('SELECT id_order_state FROM ' . _DB_PREFIX_ . 'order_state_lang osl WHERE osl.name = "Fetchr Shipping"');
                         foreach ($get_order_state as $order_state_id) {
                             $fetchr_order_state_id = $order_state_id['id_order_state'];
@@ -244,9 +280,9 @@ class Fetchr extends Module
 
                         Db::getInstance()->executeS('INSERT INTO ' . _DB_PREFIX_ . 'order_history (id_employee, id_order, id_order_state, date_add) VALUES (1, ' . (int) ($order['id_order']) . ', ' . (int) $fetchr_order_state_id . ', "' . date('Y-m-d H:i:s') . '")');
                     }
-
+                    
                     break;
-                case 'delivery':
+                    case 'delivery':
                     $data_string = "args=" . json_encode($dataErp);
                     $ch          = curl_init();
                     $url         = $baseurl . "/client/api/";
@@ -277,6 +313,7 @@ class Fetchr extends Module
                             Db::getInstance()->executeS('INSERT INTO ' . _DB_PREFIX_ . 'order_history (id_employee, id_order, id_order_state, date_add) VALUES (1, ' . (int) ($order['id_order']) . ', ' . (int) $fetchr_order_state_id . ', "' . date('Y-m-d H:i:s') . '")');
                         }
                     }
+                }
             }
         }
     }
