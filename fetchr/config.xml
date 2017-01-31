@@ -17,7 +17,7 @@
 * versions in the future. If you wish to customize Fetchr PrestaShop Module (Fetchr Shiphappy) for your
 * needs please refer to http://www.fetchr.us for more information.
 *
-* @author     Danish Kamal
+* @author     Fetchr.us
 * @package    Fetchr Shiphappy
 * Used in pusing order from PrestaShop Store to Fetchr
 * @copyright  Copyright (c) 2015 Fetchr (http://www.fetchr.us)
