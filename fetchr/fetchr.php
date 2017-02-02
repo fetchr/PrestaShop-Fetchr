@@ -50,7 +50,6 @@ class Fetchr extends Module
         $this->description = $this->l('Fetchr - Leading Logistic service provider in UAE, is a key player in ecommerce Connection.');
         $this->_checkContent();
         $this->FETCHR_PROCESS();
-        $this->OrderData();
         $this->context->smarty->assign('module_name', $this->name);
     }
     public function install()
@@ -58,6 +57,7 @@ class Fetchr extends Module
         if (!parent::install() || !$this->_createContent()) {
             return false;
         } else {
+            $this->registerHook('actionOrderStatusPostUpdate');
             return true;
         }
     }
@@ -135,9 +135,15 @@ class Fetchr extends Module
             }
         }
     }
+    
+    public function hookActionOrderStatusPostUpdate($params)
+    {
+        $this->OrderData();
+    }
     public function OrderData()
     {
-        $get_order_details = Db::getInstance()->executeS('SELECT * FROM ' . _DB_PREFIX_ . 'orders o LEFT JOIN ' . _DB_PREFIX_ . 'customer c ON (c.id_customer = o.id_customer) LEFT JOIN ' . _DB_PREFIX_ . 'address a ON (a.id_address = o.id_address_delivery) WHERE o.current_state = ' . (int) Configuration::get('PS_OS_PREPARATION'));
+        $get_order_details = Db::getInstance()->executeS('SELECT * FROM ' . _DB_PREFIX_ . 'orders o LEFT JOIN ' . _DB_PREFIX_ . 'customer c ON (c.id_customer = o.id_customer) LEFT JOIN ' . _DB_PREFIX_ . 'address a ON (a.id_address = o.id_address_delivery) WHERE o.current_state = ' . (int) Configuration::get('PS_OS_PREPARATION').' ORDER BY o.id_order DESC LIMIT 1');
+        
         foreach ($get_order_details as $order) {
             $get_product_details = Db::getInstance()->executeS('SELECT * FROM ' . _DB_PREFIX_ . 'order_detail od WHERE od.id_order = ' . (int) ($order['id_order']));
             foreach ($get_product_details as $item) {
@@ -216,7 +222,7 @@ class Fetchr extends Module
                                     "discount" => 0,
                                     "grand_total" => $grandtotal,
                                     "customer_email" => $order['email'],
-                                    "order_id" => $erp_order_id,
+                                    "order_id" => $order['id_order'],
                                     "customer_firstname" => $order['firstname'],
                                     "payment_method" => $paymentType,
                                     "customer_mobile" => !empty($order['phone']) ? $order['phone'] : $order['phone_mobile'],
@@ -234,7 +240,7 @@ class Fetchr extends Module
                             "method" => 'create_orders',
                             "data" => array(
                                 array(
-                                    "order_reference" =>$erp_order_id,
+                                    "order_reference" =>$order['id_order'],
                                     "name" => $order['firstname'] . ' ' . $order['firstname'],
                                     "email" => $order['email'],
                                     "phone_number" => $order['phone_mobile'],
@@ -262,7 +268,7 @@ class Fetchr extends Module
                     curl_close($ch);
                     
                     $decoded_response = json_decode($response, true);
-//                    PrestaShopLogger::addLog($response);
+                    PrestaShopLogger::addLog($response);
                       
                     if ($decoded_response['tracking_no'] != '0' && $decoded_response['success'] == true) {
                     
